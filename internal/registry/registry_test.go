@@ -43,25 +43,37 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestLoadFileWithoutPortsKeyIsUsable(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "registry.json")
-	os.WriteFile(path, []byte(`{"version":1}`), 0o600)
+func TestLoadNilPortsIsUsable(t *testing.T) {
+	// ports キー欠落・明示的な null のどちらでも、Load 後に Set しても
+	// nil マップへの代入で panic しないこと(Ports が非 nil であること)。
+	for name, body := range map[string]string{
+		"missing key":   `{"version":1}`,
+		"explicit null": `{"version":1,"ports":null}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "registry.json")
+			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
 
-	r, err := Load(path)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
+			r, err := Load(path)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
 
-	// ports キーが無くても Set が panic しない(Ports が非 nil であること)
-	r.Set(12701, Label{Name: "a"})
-	if r.Ports[12701].Name != "a" {
-		t.Fatalf("Set() after Load = %+v", r.Ports)
+			r.Set(12701, Label{Name: "a"})
+			if r.Ports[12701].Name != "a" {
+				t.Fatalf("Set() after Load = %+v", r.Ports)
+			}
+		})
 	}
 }
 
 func TestLoadCorruptFileErrorsWithPath(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "registry.json")
-	os.WriteFile(path, []byte("{broken"), 0o644)
+	if err := os.WriteFile(path, []byte("{broken"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
 	_, err := Load(path)
 	if err == nil {
 		t.Fatal("Load() = nil error, want corrupt-file error")

@@ -39,6 +39,11 @@ func Load(path string) (*Registry, error) {
 	if err := json.Unmarshal(data, r); err != nil {
 		return nil, fmt.Errorf("registry file %s is corrupt: %w (fix or remove it manually)", path, err)
 	}
+	// 明示的な "ports": null は Unmarshal で nil マップになるため、
+	// 後続の Set が nil マップへの代入で panic しないよう空マップに戻す。
+	if r.Ports == nil {
+		r.Ports = map[int]Label{}
+	}
 
 	return r, nil
 }
@@ -58,7 +63,12 @@ func (r *Registry) Save(path string) error {
 		return err
 	}
 
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp) // rename 失敗時に中間ファイルを残さない
+		return err
+	}
+
+	return nil
 }
 
 func (r *Registry) Set(port int, l Label) { r.Ports[port] = l }
