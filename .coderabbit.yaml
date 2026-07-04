@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# 127xx 組織は CodeRabbit の GUI 設定を持たないため、本ファイルが設定の全量となる
+# (組織 GUI 設定が無いので inheritance は不要)。
+#
+# 他プロジェクト(組織設定 + repo 設定の実効値)をベースに x127 向けへ調整 (Issue #3):
+#   - pre_merge_checks / custom_checks: Pro Plus 限定機能のため記載しない
+#   - tone_instructions: x127 (Go シングルバイナリ + 埋め込み Svelte UI) 向けに書き直し
+#   - path_instructions: repo 構造依存のため見送り。コード構造が固まってから別 issue で追加
+#   - tools: CI 未整備の間は golangci-lint / eslint を CodeRabbit に担わせる。
+#     無関係言語 linter と文体・校正系 checker のみ無効化
+
+language: ja-JP
+
+early_access: true
+
+# CodeRabbit に x127 のドメイン persona を緩く刷り込む (250 字以内)。
+tone_instructions: >-
+  x127 は Go 製シングルバイナリ + 埋め込み Svelte UI のローカルポート台帳ツールです。
+  silent failure や fail-open を見逃さず、エラーを握りつぶさず表面化する観点を重視してください。
+  指摘は日本語で簡潔にお願いします。
+
+reviews:
+  # 指摘多め・実バグ捕捉率高。ノイズが問題になったら path_instructions 等で個別に抑える。
+  profile: assertive
+
+  # actionable findings を "Comment" でなく "Request Changes" として提出し、レビュー解決を促す。
+  request_changes_workflow: true
+
+  high_level_summary_in_walkthrough: true
+  review_details: true
+  collapse_walkthrough: false
+  suggested_labels: false
+  auto_apply_labels: true
+  suggested_reviewers: false
+  poem: true
+
+  # 単一 repo で依存は go.mod / package.json に pin される想定のため毎回 fresh fetch は不要。
+  # cache を使ってレビューを高速化する。
+  disable_cache: false
+
+  auto_review:
+    # PR 作成後、レビュー累積コミット数が 5 を超えたら incremental auto-review を pause し、
+    # push 毎の自動再レビュー暴走を防ぐ。@coderabbitai review 等の明示コマンドでは再開可能。
+    auto_pause_after_reviewed_commits: 5
+
+    # draft PR (WIP) への自動レビューを止めて quota を節約する。ready 化で自動レビュー開始。
+    drafts: false
+
+    # WIP タイトルの PR を自動レビュー対象から除外する (大文字小文字非依存)。
+    ignore_title_keywords:
+      - WIP
+
+    # 全ブランチ宛の PR を自動レビュー対象にする。
+    base_branches:
+      - .*
+
+  finishing_touches:
+    simplify:
+      enabled: true
+
+  # CodeRabbit は「ほぼ全ツールが既定有効」のため、止めたいものは明示的に enabled: false に
+  # しないと実行され quota / ノイズを生む。
+  tools:
+    github-checks:
+      timeout_ms: 900000
+    # secrets 漏洩検知。
+    gitleaks:
+      enabled: true
+    # .github/workflows の lint。
+    actionlint:
+      enabled: true
+    # GitHub Actions のセキュリティ静的解析。
+    zizmor:
+      enabled: true
+    # PII 検知。CodeRabbit 既定は false のため明示的に有効化する。
+    presidio:
+      enabled: true
+    # x127 は Go + Svelte。CI 未整備の間は lint を CodeRabbit に担わせる (既定有効を明示維持)。
+    golangci-lint:
+      enabled: true
+    eslint:
+      enabled: true
+    # PHP linter。x127 は Go + Svelte で無関係。timeout 予算の浪費を避けるため無効化。
+    phpstan:
+      enabled: false
+    # Markdown linter。日本語 docs の style 指摘がノイズになりやすいため無効化。
+    markdownlint:
+      enabled: false
+    # style / grammar checker。日本語散文に文体・校正系コメントが出るため無効化。
+    languagetool:
+      enabled: false
+
+knowledge_base:
+  mcp:
+    usage: enabled
+
+code_generation:
+  docstrings:
+    language: ja-JP
+
+issue_enrichment:
+  auto_enrich:
+    enabled: true
+  labeling:
+    auto_apply_labels: true
