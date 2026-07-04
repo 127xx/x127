@@ -33,6 +33,7 @@ func Load(path string) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var r Registry
 	if err := json.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("registry file %s is corrupt: %w (fix or remove it manually)", path, err)
@@ -40,6 +41,7 @@ func Load(path string) (*Registry, error) {
 	if r.Ports == nil {
 		r.Ports = map[int]Label{}
 	}
+
 	return &r, nil
 }
 
@@ -47,14 +49,17 @@ func (r *Registry) Save(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
+
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		return err
 	}
+
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
+
 	return os.Rename(tmp, path)
 }
 
