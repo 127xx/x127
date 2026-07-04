@@ -1,0 +1,15 @@
+# Dependabot 設定
+# GitHub Actions を SHA 固定(#12 / PR #14)したままバージョンを追従させるための定期更新。
+# Dependabot は SHA 参照でも `# vX.Y.Z` コメントを読んで新しい SHA + バージョンへ更新する。
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # 週次更新をまとめて 1 つの PR にし、レビュー負荷とノイズを抑える。
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+# 補足: 外部依存(go.sum)が増えたら gomod エコシステムの追加を検討する(#17 で別途追跡)。
