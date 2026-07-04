@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          # 外部依存(go.sum)が無い間はキャッシュ対象が無いため無効化。依存追加時に true へ(#17)。
+          cache: false
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "以下のファイルが gofmt 未整形です:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          # 外部依存(go.sum)が無い間はキャッシュ対象が無いため無効化。依存追加時に true へ(#17)。
+          cache: false
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test ./...
+
+  # ブランチ保護で必須にするのはこの集約ジョブ 1 つだけにする想定。
+  # lint / test(matrix 含む)が全て success/skipped なら成功、いずれか failure/cancelled なら失敗。
+  # これにより paths フィルタ等でジョブが skip されても必須チェックが Pending 固着しない。
+  ci-passed:
+    name: CI Passed
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              echo "必須ジョブが success/skipped ではありません: $r"
+              exit 1
+            fi
+          done
