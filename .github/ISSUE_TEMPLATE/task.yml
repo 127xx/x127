@@ -1,0 +1,34 @@
+name: タスク／機能
+description: 開発タスク・機能追加
+labels: ["task"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 何をするタスクかを簡潔に記述してください。
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景・目的
+      description: なぜ必要か、何を達成したいかを記述してください。
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: このタスクが「完了」と言える状態をチェックリストで記述してください。
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 対象範囲・補足
+      description: 影響範囲、関連 issue、注意点などがあれば記述してください。
+    validations:
+      required: false

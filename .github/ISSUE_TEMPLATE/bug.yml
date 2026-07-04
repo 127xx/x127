@@ -1,0 +1,59 @@
+name: バグ報告
+description: 不具合の報告
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 発生している問題
+      description: どのような不具合が起きているかを記述してください。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 問題を再現させる手順を記述してください。
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      description: 本来どうなるべきかを記述してください。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: 実際に何が起きたかを記述してください。ログやエラーメッセージがあれば貼り付けてください。
+    validations:
+      required: false
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: x127 のバージョン
+      description: "`x127 version` などで確認できるバージョン。不明な場合はコミットハッシュでも可。"
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: 補足
+      description: その他、参考になる情報があれば記述してください。
+    validations:
+      required: false
