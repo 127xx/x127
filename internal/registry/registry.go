@@ -35,15 +35,12 @@ func Load(path string) (*Registry, error) {
 		return nil, err
 	}
 
-	var r Registry
-	if err := json.Unmarshal(data, &r); err != nil {
+	r := New()
+	if err := json.Unmarshal(data, r); err != nil {
 		return nil, fmt.Errorf("registry file %s is corrupt: %w (fix or remove it manually)", path, err)
 	}
-	if r.Ports == nil {
-		r.Ports = map[int]Label{}
-	}
 
-	return &r, nil
+	return r, nil
 }
 
 func (r *Registry) Save(path string) error {

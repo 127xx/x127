@@ -43,6 +43,22 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestLoadFileWithoutPortsKeyIsUsable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "registry.json")
+	os.WriteFile(path, []byte(`{"version":1}`), 0o600)
+
+	r, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	// ports キーが無くても Set が panic しない(Ports が非 nil であること)
+	r.Set(12701, Label{Name: "a"})
+	if r.Ports[12701].Name != "a" {
+		t.Fatalf("Set() after Load = %+v", r.Ports)
+	}
+}
+
 func TestLoadCorruptFileErrorsWithPath(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "registry.json")
 	os.WriteFile(path, []byte("{broken"), 0o644)
