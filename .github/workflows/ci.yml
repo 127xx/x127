@@ -18,12 +18,13 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          # 外部依存(go.sum)が無い間はキャッシュ対象が無いため無効化。依存追加時に true へ。
+          cache: false
 
       - name: gofmt
         run: |
@@ -44,12 +45,13 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          # 外部依存(go.sum)が無い間はキャッシュ対象が無いため無効化。依存追加時に true へ。
+          cache: false
 
       - name: go build
         run: go build ./...
