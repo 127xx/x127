@@ -64,7 +64,7 @@ func (r *Registry) Save(path string) error {
 	}
 
 	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp) // don't leave the temp file behind if rename fails
+		_ = os.Remove(tmp) // best-effort cleanup; the rename error takes priority
 		return err
 	}
 
