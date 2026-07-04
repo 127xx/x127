@@ -12,6 +12,10 @@
 
 language: ja-JP
 
+# 運用メモ: early_access (ベータ機能) × assertive × request_changes_workflow の組み合わせは、
+# 未成熟なノイズ指摘が "Request Changes" として PR をブロックする可能性がある。運用開始後に
+# レビューノイズが問題化したら、まず本設定 (early_access) を false にするか、
+# reviews.request_changes_workflow を false に緩めるのが復旧の近道 (PR #4 レビュー指摘)。
 early_access: true
 
 # CodeRabbit に x127 のドメイン persona を緩く刷り込む (250 字以内)。
@@ -25,6 +29,8 @@ reviews:
   profile: assertive
 
   # actionable findings を "Comment" でなく "Request Changes" として提出し、レビュー解決を促す。
+  # 運用メモ: ノイズ指摘による PR ブロックが問題化したら、ここを false に緩めるか
+  # top-level の early_access を false にする (冒頭の運用メモ参照)。
   request_changes_workflow: true
 
   high_level_summary_in_walkthrough: true
