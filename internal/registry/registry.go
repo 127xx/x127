@@ -1,5 +1,6 @@
 // Package registry persists port labels to registry.json.
-// The file is the user-editable source of truth for port names;
+// The file is normally updated through the Web UI, but stays
+// human-readable so it can be inspected or hand-fixed if needed;
 // a corrupt file is a hard error, never silently re-initialized.
 package registry
 
@@ -56,7 +57,7 @@ func (r *Registry) Save(path string) error {
 	}
 
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
 
