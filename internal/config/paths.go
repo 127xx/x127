@@ -3,12 +3,20 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
 
 func Dir() (string, error) {
+	// X127_CONFIG_DIR is an explicit override: a relative value would make
+	// the config path depend on each command's CWD (e.g. serve and stop run
+	// from different directories would miss each other's pid file), so reject
+	// it loudly rather than silently resolving it against the CWD.
 	if d := os.Getenv("X127_CONFIG_DIR"); d != "" {
+		if !filepath.IsAbs(d) {
+			return "", fmt.Errorf("X127_CONFIG_DIR must be an absolute path, got %q", d)
+		}
 		return d, nil
 	}
 	// XDG spec: a relative XDG_CONFIG_HOME is invalid and must be ignored,

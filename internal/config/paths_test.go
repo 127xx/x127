@@ -39,6 +39,14 @@ func TestDirIgnoresRelativeXDG(t *testing.T) {
 	}
 }
 
+func TestDirRejectsRelativeOverride(t *testing.T) {
+	// A relative X127_CONFIG_DIR must be rejected, not resolved against the CWD.
+	t.Setenv("X127_CONFIG_DIR", ".x127")
+	if _, err := Dir(); err == nil {
+		t.Fatal("Dir() = nil error for relative X127_CONFIG_DIR, want error")
+	}
+}
+
 func TestFilePaths(t *testing.T) {
 	t.Setenv("X127_CONFIG_DIR", "/tmp/cfg")
 	reg, err := RegistryPath()
