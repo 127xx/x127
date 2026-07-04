@@ -1,6 +1,6 @@
 ## 対応したISSUE
 
-* https://github.com/127xx/x127/issues/
+* #<Issue番号>
 
 ## 対応した分野
 
