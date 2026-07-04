@@ -14,10 +14,12 @@ func Dir() (string, error) {
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
 		return filepath.Join(x, "x127"), nil
 	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
+
 	return filepath.Join(home, ".config", "x127"), nil
 }
 
