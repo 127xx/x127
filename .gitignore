@@ -1,0 +1,9 @@
+# build artifacts
+/x127
+web/node_modules/
+
+# local dev agent configs (not part of the repo)
+/.agent-configs-manifest
+/.claude/
+/.codex/
+/.opencode/
