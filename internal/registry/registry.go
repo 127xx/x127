@@ -39,8 +39,8 @@ func Load(path string) (*Registry, error) {
 	if err := json.Unmarshal(data, r); err != nil {
 		return nil, fmt.Errorf("registry file %s is corrupt: %w (fix or remove it manually)", path, err)
 	}
-	// 明示的な "ports": null は Unmarshal で nil マップになるため、
-	// 後続の Set が nil マップへの代入で panic しないよう空マップに戻す。
+	// An explicit "ports": null unmarshals to a nil map; reset it to an empty
+	// map so later Set calls don't panic on assignment to a nil map.
 	if r.Ports == nil {
 		r.Ports = map[int]Label{}
 	}
@@ -64,7 +64,7 @@ func (r *Registry) Save(path string) error {
 	}
 
 	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp) // rename 失敗時に中間ファイルを残さない
+		os.Remove(tmp) // don't leave the temp file behind if rename fails
 		return err
 	}
 
