@@ -11,7 +11,9 @@ func Dir() (string, error) {
 	if d := os.Getenv("X127_CONFIG_DIR"); d != "" {
 		return d, nil
 	}
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
+	// XDG spec: a relative XDG_CONFIG_HOME is invalid and must be ignored,
+	// so fall through to ~/.config to avoid a CWD-dependent config path.
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" && filepath.IsAbs(x) {
 		return filepath.Join(x, "x127"), nil
 	}
 
@@ -28,7 +30,9 @@ func EnsureDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return d, os.MkdirAll(d, 0o755)
+	// 0o700: the dir holds registry.json / x127.pid / x127.log, so keep it
+	// private to the owning user (other users must not list or traverse it).
+	return d, os.MkdirAll(d, 0o700)
 }
 
 func RegistryPath() (string, error) { return join("registry.json") }
