@@ -7,6 +7,7 @@ package server
 import (
 	"encoding/json"
 	"io/fs"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -75,36 +76,42 @@ func (s *Server) listPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ポート番号をキーにした map でマージする。キーの一意性が重複排除を
-	// 担うので、別途「追加済みポート」を覚える変数は要らない。まず LISTEN
-	// 中のエントリに台帳のラベルを重ねる。
-	byPort := make(map[int]PortView, len(entries))
+	// LISTEN 中のポート番号の集合。台帳のみのエントリを判別するために使う。
+	// entries は同一ポートでも IP/PID 違いで複数あり得るため、出力は集合では
+	// なくスライスで全件保持し、集合は判定用に別途持つ。
+	listening := make(map[int]bool, len(entries))
+	for _, e := range entries {
+		listening[e.Port] = true
+	}
+
+	// LISTEN 中のエントリは全件保持する。台帳にラベルがあれば重ねる。
+	views := make([]PortView, 0, len(entries)+len(reg.Ports))
 	for _, e := range entries {
 		v := PortView{Entry: e, Active: true}
 		if l, ok := reg.Ports[e.Port]; ok {
 			v.Name, v.Note = l.Name, l.Note
 		}
-		byPort[e.Port] = v
+		views = append(views, v)
 	}
 
 	// 台帳にあるが LISTEN していないポートを active:false として追加する。
-	// LISTEN 中として登録済みのポートは上書きしない。
 	for port, l := range reg.Ports {
-		if _, ok := byPort[port]; !ok {
-			byPort[port] = PortView{
+		if !listening[port] {
+			views = append(views, PortView{
 				Entry: ports.Entry{Port: port, Proto: "tcp"},
 				Name:  l.Name, Note: l.Note, Active: false,
-			}
+			})
 		}
 	}
 
-	// JSON はポート順の配列で返す契約。map は順序を持たないので、スライスへ
-	// 詰め替えてポート番号でソートする。
-	views := make([]PortView, 0, len(byPort))
-	for _, v := range byPort {
-		views = append(views, v)
-	}
-	sort.Slice(views, func(i, j int) bool { return views[i].Port < views[j].Port })
+	// ポート番号 → アドレスの順で安定ソートする(同一ポートの複数リスナーも
+	// 決まった順で並ぶ)。
+	sort.Slice(views, func(i, j int) bool {
+		if views[i].Port != views[j].Port {
+			return views[i].Port < views[j].Port
+		}
+		return views[i].Address < views[j].Address
+	})
 
 	writeJSON(w, http.StatusOK, views)
 }
@@ -178,7 +185,11 @@ func parsePort(w http.ResponseWriter, r *http.Request) (int, bool) {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	// ヘッダー送信後なのでステータスは変えられない。silent failure を避けるため
+	// ログにだけ残す。
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("writeJSON: encode failed: %v", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {

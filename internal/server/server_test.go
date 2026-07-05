@@ -37,10 +37,15 @@ func TestHealth(t *testing.T) {
 
 func TestListPortsMergesRegistry(t *testing.T) {
 	s, regPath := newTestServer(t)
-	r, _ := registry.Load(regPath)
+	r, err := registry.Load(regPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r.Set(8080, registry.Label{Name: "llama.cpp"})
 	r.Set(9999, registry.Label{Name: "予約だけ", Note: "止まってる"})
-	r.Save(regPath)
+	if err := r.Save(regPath); err != nil {
+		t.Fatal(err)
+	}
 
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/api/ports", nil))
@@ -60,6 +65,40 @@ func TestListPortsMergesRegistry(t *testing.T) {
 	}
 	if v := byPort[9999]; v.Active || v.Name != "予約だけ" {
 		t.Fatalf("9999 = %+v", v)
+	}
+}
+
+func TestListPortsKeepsMultipleListenersPerPort(t *testing.T) {
+	// 1 プロセスが同一ポートを IPv4/IPv6 の両方で LISTEN するなど、
+	// scanner は同一ポートに複数エントリを返しうる。マージで潰さず
+	// 全件保持し、それぞれの Address/PID が正しく返ることを確認する。
+	regPath := filepath.Join(t.TempDir(), "registry.json")
+	fake := func() ([]ports.Entry, error) {
+		return []ports.Entry{
+			{Port: 3000, Proto: "tcp", Address: "127.0.0.1", PID: 10, Process: "node"},
+			{Port: 3000, Proto: "tcp", Address: "::1", PID: 10, Process: "node"},
+		}, nil
+	}
+	s := New(regPath, fake)
+
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/api/ports", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var views []PortView
+	if err := json.Unmarshal(rec.Body.Bytes(), &views); err != nil {
+		t.Fatal(err)
+	}
+
+	addrs := map[string]bool{}
+	for _, v := range views {
+		if v.Port == 3000 {
+			addrs[v.Address] = true
+		}
+	}
+	if !addrs["127.0.0.1"] || !addrs["::1"] {
+		t.Fatalf("port 3000 の複数リスナーが保持されていない: %+v", views)
 	}
 }
 
