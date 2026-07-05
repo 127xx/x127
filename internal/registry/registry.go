@@ -1,7 +1,7 @@
-// Package registry persists port labels to registry.json.
-// The file is normally updated through the Web UI, but stays
-// human-readable so it can be inspected or hand-fixed if needed;
-// a corrupt file is a hard error, never silently re-initialized.
+// Package registry はポートのラベルを registry.json に永続化する。
+// このファイルは通常 Web UI 経由で更新されるが、必要なら確認・手動修正
+// できるよう人間が読める形式を保つ。壊れたファイルはハードエラーとし、
+// 決して暗黙に再初期化しない。
 package registry
 
 import (
@@ -39,8 +39,8 @@ func Load(path string) (*Registry, error) {
 	if err := json.Unmarshal(data, r); err != nil {
 		return nil, fmt.Errorf("registry file %s is corrupt: %w (fix or remove it manually)", path, err)
 	}
-	// An explicit "ports": null unmarshals to a nil map; reset it to an empty
-	// map so later Set calls don't panic on assignment to a nil map.
+	// 明示的な "ports": null は nil マップにアンマーシャルされるため、空のマップに
+	// リセットして以降の Set 呼び出しが nil マップへの代入で panic しないようにする。
 	if r.Ports == nil {
 		r.Ports = map[int]Label{}
 	}
@@ -64,7 +64,7 @@ func (r *Registry) Save(path string) error {
 	}
 
 	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp) // best-effort cleanup; the rename error takes priority
+		_ = os.Remove(tmp) // ベストエフォートのクリーンアップ。rename のエラーを優先する
 		return err
 	}
 

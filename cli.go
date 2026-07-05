@@ -16,8 +16,8 @@ commands:
   version  バージョンを表示
 `
 
-// Run executes the x127 CLI. args is os.Args[1:]; later tasks add
-// subcommand cases to the switch below.
+// Run は x127 CLI を実行する。args は os.Args[1:]。以降のタスクで
+// 下の switch にサブコマンドの case を追加していく。
 func Run(args []string, stdout, stderr io.Writer) int {
 	if len(args) < 1 {
 		fmt.Fprint(stderr, usage)

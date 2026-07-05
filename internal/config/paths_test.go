@@ -28,8 +28,8 @@ func TestDirPrecedence(t *testing.T) {
 }
 
 func TestDirIgnoresRelativeXDG(t *testing.T) {
-	// XDG spec: a relative XDG_CONFIG_HOME is invalid and must be ignored,
-	// falling back to ~/.config so the path never depends on the CWD.
+	// XDG 仕様では相対パスの XDG_CONFIG_HOME は不正で無視する必要があり、
+	// パスが CWD に依存しないよう ~/.config へフォールバックする。
 	t.Setenv("X127_CONFIG_DIR", "")
 	t.Setenv("XDG_CONFIG_HOME", ".config")
 	t.Setenv("HOME", "/tmp/home")
@@ -40,7 +40,7 @@ func TestDirIgnoresRelativeXDG(t *testing.T) {
 }
 
 func TestDirRejectsRelativeOverride(t *testing.T) {
-	// A relative X127_CONFIG_DIR must be rejected, not resolved against the CWD.
+	// 相対パスの X127_CONFIG_DIR は CWD 基準で解決せず、エラーとして弾く必要がある。
 	t.Setenv("X127_CONFIG_DIR", ".x127")
 	if _, err := Dir(); err == nil {
 		t.Fatal("Dir() = nil error for relative X127_CONFIG_DIR, want error")
