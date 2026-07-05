@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,28 +75,36 @@ func (s *Server) listPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// LISTEN 中のエントリに台帳のラベルを重ねる。ここで見たポートを
-	// activePorts に記録し、後段で台帳のみのエントリを判別する。
-	views := make([]PortView, 0, len(entries))
-	activePorts := map[int]bool{}
+	// ポート番号をキーにした map でマージする。キーの一意性が重複排除を
+	// 担うので、別途「追加済みポート」を覚える変数は要らない。まず LISTEN
+	// 中のエントリに台帳のラベルを重ねる。
+	byPort := make(map[int]PortView, len(entries))
 	for _, e := range entries {
 		v := PortView{Entry: e, Active: true}
 		if l, ok := reg.Ports[e.Port]; ok {
 			v.Name, v.Note = l.Name, l.Note
 		}
-		views = append(views, v)
-		activePorts[e.Port] = true
+		byPort[e.Port] = v
 	}
 
 	// 台帳にあるが LISTEN していないポートを active:false として追加する。
+	// LISTEN 中として登録済みのポートは上書きしない。
 	for port, l := range reg.Ports {
-		if !activePorts[port] {
-			views = append(views, PortView{
+		if _, ok := byPort[port]; !ok {
+			byPort[port] = PortView{
 				Entry: ports.Entry{Port: port, Proto: "tcp"},
 				Name:  l.Name, Note: l.Note, Active: false,
-			})
+			}
 		}
 	}
+
+	// JSON はポート順の配列で返す契約。map は順序を持たないので、スライスへ
+	// 詰め替えてポート番号でソートする。
+	views := make([]PortView, 0, len(byPort))
+	for _, v := range byPort {
+		views = append(views, v)
+	}
+	sort.Slice(views, func(i, j int) bool { return views[i].Port < views[j].Port })
 
 	writeJSON(w, http.StatusOK, views)
 }
