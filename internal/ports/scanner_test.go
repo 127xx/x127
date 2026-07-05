@@ -11,8 +11,12 @@ func TestScanFindsOwnListener(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
-	port := l.Addr().(*net.TCPAddr).Port
+	defer func() { _ = l.Close() }()
+	tcpAddr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address is not *net.TCPAddr: %T", l.Addr())
+	}
+	port := tcpAddr.Port
 
 	entries, err := Scan()
 	if err != nil {
