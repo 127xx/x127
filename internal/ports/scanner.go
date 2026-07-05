@@ -1,6 +1,6 @@
-// Package ports enumerates listening TCP ports on the host.
-// On macOS, PID/process info for other users' processes may be
-// unavailable without root; such entries keep an empty Process.
+// Package ports はホストで LISTEN 中の TCP ポートを列挙する。
+// macOS では他ユーザーのプロセスの PID/プロセス情報が root なしでは
+// 取得できないことがあり、そうしたエントリは Process を空のままにする。
 package ports
 
 import (
@@ -25,8 +25,8 @@ func Scan() ([]Entry, error) {
 		return nil, err
 	}
 
-	// Index entries by their (IP|port|pid) key; the map's key
-	// uniqueness handles de-duplication.
+	// エントリを (IP|port|pid) のキーで索引する。マップのキーの
+	// 一意性が重複排除を担う。
 	byKey := map[string]Entry{}
 	for _, c := range conns {
 		if c.Status != "LISTEN" {
@@ -53,7 +53,7 @@ func Scan() ([]Entry, error) {
 		byKey[key] = e
 	}
 
-	// A map is unordered, so copy into a slice before sorting by port.
+	// マップは順序を持たないため、ポート順にソートする前にスライスへコピーする。
 	out := make([]Entry, 0, len(byKey))
 	for _, e := range byKey {
 		out = append(out, e)
