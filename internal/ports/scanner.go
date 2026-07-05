@@ -25,17 +25,17 @@ func Scan() ([]Entry, error) {
 		return nil, err
 	}
 
-	seen := map[string]bool{}
-	var out []Entry
+	// Index entries by their (IP|port|pid) key; the map's key
+	// uniqueness handles de-duplication.
+	byKey := map[string]Entry{}
 	for _, c := range conns {
 		if c.Status != "LISTEN" {
 			continue
 		}
 		key := fmt.Sprintf("%s|%d|%d", c.Laddr.IP, c.Laddr.Port, c.Pid)
-		if seen[key] {
+		if _, ok := byKey[key]; ok {
 			continue
 		}
-		seen[key] = true
 
 		e := Entry{
 			Port:    int(c.Laddr.Port),
@@ -50,9 +50,14 @@ func Scan() ([]Entry, error) {
 				}
 			}
 		}
-		out = append(out, e)
+		byKey[key] = e
 	}
 
+	// A map is unordered, so copy into a slice before sorting by port.
+	out := make([]Entry, 0, len(byKey))
+	for _, e := range byKey {
+		out = append(out, e)
+	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Port != out[j].Port {
 			return out[i].Port < out[j].Port
