@@ -1,7 +1,19 @@
-<script>
-  let ports = $state([]);
+<script lang="ts">
+  // GET /api/ports のレスポンス（internal/server の PortView に対応）
+  type PortView = {
+    port: number;
+    proto: string;
+    address: string;
+    pid: number;
+    process: string;
+    name?: string;
+    note?: string;
+    active: boolean;
+  };
+
+  let ports = $state<PortView[]>([]);
   let error = $state("");
-  let editing = $state(null); // 編集中のポート番号 or null
+  let editing = $state<number | null>(null); // 編集中のポート番号 or null
   let name = $state("");
   let note = $state("");
 
@@ -12,11 +24,11 @@
       ports = await res.json();
       error = "";
     } catch (e) {
-      error = `ポート一覧の取得に失敗しました: ${e.message}`;
+      error = `ポート一覧の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
 
-  function startEdit(p) {
+  function startEdit(p: PortView) {
     editing = p.port;
     name = p.name ?? "";
     note = p.note ?? "";
@@ -37,7 +49,7 @@
     await load();
   }
 
-  async function clearLabel(port) {
+  async function clearLabel(port: number) {
     await fetch(`/api/ports/${port}/label`, { method: "DELETE" });
     await load();
   }
