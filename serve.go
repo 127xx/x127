@@ -40,7 +40,11 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
-	pidPath, _ := config.PIDPath()
+	pidPath, err := config.PIDPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
 	if pid, ok := daemon.ReadPID(pidPath); ok && daemon.Alive(pid) {
 		fmt.Fprintf(stderr, "x127 is already running (pid %d): %s\n", pid, baseURL)
 		return 1
@@ -55,7 +59,11 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
-	logPath, _ := config.LogPath()
+	logPath, err := config.LogPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		fmt.Fprintf(stderr, "x127: %v\n", err)
@@ -83,17 +91,31 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 // runServer は子側。PID ファイルを持ち、HTTP サーバーを起動して
 // SIGTERM/SIGINT で graceful shutdown する。
 func runServer(stderr io.Writer) int {
-	pidPath, _ := config.PIDPath()
+	pidPath, err := config.PIDPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
 	if err := daemon.WritePID(pidPath); err != nil {
 		fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	defer os.Remove(pidPath)
 
-	regPath, _ := config.RegistryPath()
+	regPath, err := config.RegistryPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
+	// タイムアウトを設定して遅延接続によるリソース枯渇(Slowloris 等)を防ぐ。
+	// 127.0.0.1 固定バインドだが安価な堅牢化として明示する。
 	srv := &http.Server{
-		Addr:    listenAddr,
-		Handler: server.New(regPath, ports.Scan).Handler(),
+		Addr:              listenAddr,
+		Handler:           server.New(regPath, ports.Scan).Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
@@ -106,7 +128,10 @@ func runServer(stderr io.Writer) int {
 	case <-ctx.Done():
 		shutdownCtx, c := context.WithTimeout(context.Background(), 3*time.Second)
 		defer c()
-		srv.Shutdown(shutdownCtx)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			fmt.Fprintf(stderr, "x127: graceful shutdown failed: %v\n", err)
+			return 1
+		}
 		return 0
 	case err := <-errCh:
 		if !errors.Is(err, http.ErrServerClosed) {
@@ -119,7 +144,11 @@ func runServer(stderr io.Writer) int {
 
 // cmdStatus は稼働状態を表示する。プロセスが生きていて health に応答すれば 0。
 func cmdStatus(stdout, stderr io.Writer) int {
-	pidPath, _ := config.PIDPath()
+	pidPath, err := config.PIDPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
 	pid, ok := daemon.ReadPID(pidPath)
 	if !ok || !daemon.Alive(pid) {
 		fmt.Fprintln(stdout, "x127 is not running")
@@ -135,7 +164,11 @@ func cmdStatus(stdout, stderr io.Writer) int {
 
 // cmdStop はサーバーを停止する。PID が生きていれば SIGTERM を送って終了を待つ。
 func cmdStop(stdout, stderr io.Writer) int {
-	pidPath, _ := config.PIDPath()
+	pidPath, err := config.PIDPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
 	pid, ok := daemon.ReadPID(pidPath)
 	if !ok {
 		fmt.Fprintln(stdout, "x127 is not running")
