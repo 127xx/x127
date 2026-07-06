@@ -211,11 +211,16 @@ func cmdStop(stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stdout, "x127 is not running")
 		return 1
 	}
-	if !daemon.Alive(pid) || !daemon.Owned(pid) {
-		// 死んでいる、または PID 再利用で x127 でないプロセスを指す PID ファイルは
-		// stale として掃除する。他プロセスへ誤って SIGTERM を送らない。
-		_ = os.Remove(pidPath)
+	if !daemon.Alive(pid) {
+		_ = os.Remove(pidPath) // 死んでいる PID ファイルは stale として掃除する
 		_, _ = fmt.Fprintln(stdout, "x127 is not running (removed stale pid file)")
+		return 1
+	}
+	if !daemon.Owned(pid) {
+		// 生存しているが x127 と確認できない(PID 再利用による別プロセス、または
+		// プロセス情報の一時的な取得失敗)。誤って他プロセスへ SIGTERM を送らず、
+		// 稼働中の可能性を残して PID ファイルも消さない。
+		_, _ = fmt.Fprintf(stderr, "x127: pid %d が x127 か確認できないため停止を中止しました\n", pid)
 		return 1
 	}
 	if err := daemon.Stop(pid, 5*time.Second); err != nil {
