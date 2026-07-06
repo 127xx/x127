@@ -27,6 +27,12 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case "version", "--version":
 		fmt.Fprintf(stdout, "x127 %s\n", version)
 		return 0
+	case "serve":
+		return cmdServe(stdout, stderr)
+	case "status":
+		return cmdStatus(stdout, stderr)
+	case "stop":
+		return cmdStop(stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "x127: unknown command %q\n\n", args[0])
 		fmt.Fprint(stderr, usage)
