@@ -37,46 +37,48 @@ func cmdServe(stdout, stderr io.Writer) int {
 // 子が health になるまで待ってからプロンプトを返す。
 func spawnDaemon(stdout, stderr io.Writer) int {
 	if _, err := config.EnsureDir(); err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	pidPath, err := config.PIDPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	if pid, ok := daemon.ReadPID(pidPath); ok && daemon.Alive(pid) {
-		fmt.Fprintf(stderr, "x127 is already running (pid %d): %s\n", pid, baseURL)
+		_, _ = fmt.Fprintf(stderr, "x127 is already running (pid %d): %s\n", pid, baseURL)
 		return 1
 	}
 	if err := probeListen(); err != nil {
-		fmt.Fprintf(stderr, "x127: port 12700 is in use%s\n", portHolder())
+		_, _ = fmt.Fprintf(stderr, "x127: port 12700 is in use%s\n", portHolder())
 		return 1
 	}
 
 	exe, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	logPath, err := config.LogPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 
-	cmd := exec.Command(exe, "serve")
+	// context.Background() で起動する。親の終了に子を連動させない(デタッチ維持)ため、
+	// キャンセル可能な context は渡さない。
+	cmd := exec.CommandContext(context.Background(), exe, "serve")
 	cmd.Env = append(os.Environ(), "X127_DAEMON=1")
 	cmd.Stdout, cmd.Stderr = logFile, logFile
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(stderr, "x127: failed to start daemon: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: failed to start daemon: %v\n", err)
 		return 1
 	}
 
@@ -85,10 +87,10 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 		// 次回の serve が already running / port in use で失敗するため確実に停止する。
 		_ = cmd.Process.Signal(syscall.SIGTERM)
 		_ = cmd.Wait()
-		fmt.Fprintf(stderr, "x127: daemon did not become healthy: %v (see %s)\n", err, logPath)
+		_, _ = fmt.Fprintf(stderr, "x127: daemon did not become healthy: %v (see %s)\n", err, logPath)
 		return 1
 	}
-	fmt.Fprintf(stdout, "x127 serving at %s (pid %d)\n", baseURL, cmd.Process.Pid)
+	_, _ = fmt.Fprintf(stdout, "x127 serving at %s (pid %d)\n", baseURL, cmd.Process.Pid)
 	return 0
 }
 
@@ -97,12 +99,12 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 func runServer(stderr io.Writer) int {
 	pidPath, err := config.PIDPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	regPath, err := config.RegistryPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	// タイムアウトを設定して遅延接続によるリソース枯渇(Slowloris 等)を防ぐ。
@@ -118,13 +120,14 @@ func runServer(stderr io.Writer) int {
 
 	// 先に bind し、成功した本物のサーバーだけが PID ファイルを所有する。
 	// これにより同時 serve で敗者(bind 失敗側)が勝者の PID ファイルを消す競合を防ぐ。
-	ln, err := net.Listen("tcp", listenAddr)
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", listenAddr)
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	if err := daemon.WritePID(pidPath); err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		_ = ln.Close()
 		return 1
 	}
@@ -135,19 +138,19 @@ func runServer(stderr io.Writer) int {
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 
-	fmt.Fprintf(stderr, "x127 %s listening on %s\n", version, listenAddr)
+	_, _ = fmt.Fprintf(stderr, "x127 %s listening on %s\n", version, listenAddr)
 	select {
 	case <-ctx.Done():
 		shutdownCtx, c := context.WithTimeout(context.Background(), 3*time.Second)
 		defer c()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
-			fmt.Fprintf(stderr, "x127: graceful shutdown failed: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "x127: graceful shutdown failed: %v\n", err)
 			return 1
 		}
 		return 0
 	case err := <-errCh:
 		if !errors.Is(err, http.ErrServerClosed) {
-			fmt.Fprintf(stderr, "x127: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 			return 1
 		}
 		return 0
@@ -158,19 +161,19 @@ func runServer(stderr io.Writer) int {
 func cmdStatus(stdout, stderr io.Writer) int {
 	pidPath, err := config.PIDPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	pid, ok := daemon.ReadPID(pidPath)
 	if !ok || !daemon.Alive(pid) {
-		fmt.Fprintln(stdout, "x127 is not running")
+		_, _ = fmt.Fprintln(stdout, "x127 is not running")
 		return 1
 	}
 	if err := checkHealth(); err != nil {
-		fmt.Fprintf(stdout, "x127 process exists (pid %d) but API is not responding: %v\n", pid, err)
+		_, _ = fmt.Fprintf(stdout, "x127 process exists (pid %d) but API is not responding: %v\n", pid, err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "x127 is running (pid %d): %s\n", pid, baseURL)
+	_, _ = fmt.Fprintf(stdout, "x127 is running (pid %d): %s\n", pid, baseURL)
 	return 0
 }
 
@@ -178,30 +181,31 @@ func cmdStatus(stdout, stderr io.Writer) int {
 func cmdStop(stdout, stderr io.Writer) int {
 	pidPath, err := config.PIDPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
 	pid, ok := daemon.ReadPID(pidPath)
 	if !ok {
-		fmt.Fprintln(stdout, "x127 is not running")
+		_, _ = fmt.Fprintln(stdout, "x127 is not running")
 		return 1
 	}
 	if !daemon.Alive(pid) {
 		_ = os.Remove(pidPath) // 古い PID ファイルを掃除する
-		fmt.Fprintln(stdout, "x127 is not running (removed stale pid file)")
+		_, _ = fmt.Fprintln(stdout, "x127 is not running (removed stale pid file)")
 		return 1
 	}
 	if err := daemon.Stop(pid, 5*time.Second); err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "x127 stopped (pid %d)\n", pid)
+	_, _ = fmt.Fprintf(stdout, "x127 stopped (pid %d)\n", pid)
 	return 0
 }
 
 // probeListen は 12700 が bind 可能かを事前確認する。
 func probeListen() error {
-	l, err := net.Listen("tcp", listenAddr)
+	var lc net.ListenConfig
+	l, err := lc.Listen(context.Background(), "tcp", listenAddr)
 	if err != nil {
 		return err
 	}
@@ -238,12 +242,16 @@ func portHolder() string {
 
 // checkHealth は /api/health を叩いて 200 が返るかを確認する。
 func checkHealth() error {
-	client := &http.Client{Timeout: time.Second}
-	resp, err := client.Get(baseURL + "/api/health")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/health", nil)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	client := &http.Client{Timeout: time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("health returned %d", resp.StatusCode)
 	}

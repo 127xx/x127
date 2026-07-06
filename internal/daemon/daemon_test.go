@@ -39,7 +39,7 @@ func TestStop(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	go cmd.Wait() // ゾンビ化させないよう子プロセスを reap する
+	go func() { _ = cmd.Wait() }() // ゾンビ化させないよう子プロセスを reap する
 	if err := Stop(cmd.Process.Pid, 5*time.Second); err != nil {
 		t.Fatalf("Stop() error = %v", err)
 	}
