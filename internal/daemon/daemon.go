@@ -45,7 +45,7 @@ func Owned(pid int) bool {
 	if err != nil {
 		return false
 	}
-	want := filepath.Base(self)
+	want := exeBase(self)
 
 	p, err := process.NewProcess(int32(pid))
 	if err != nil {
@@ -53,13 +53,20 @@ func Owned(pid int) bool {
 	}
 	// 実行ファイルのフルパスが取れれば basename で照合する
 	if exe, err := p.Exe(); err == nil && exe != "" {
-		return filepath.Base(exe) == want
+		return exeBase(exe) == want
 	}
 	// フルパスが取れない環境では実行ファイル名で照合する
 	if name, err := p.Name(); err == nil && name != "" {
 		return name == want
 	}
 	return false
+}
+
+// exeBase は実行ファイルパスの basename を返す。稼働中にバイナリが削除・置換されると
+// (go run や自己更新など)Linux の /proc/pid/exe は "<path> (deleted)" を返すため、
+// その接尾辞を除いてから basename を取り、同一 x127 と判定できるようにする。
+func exeBase(path string) string {
+	return filepath.Base(strings.TrimSuffix(path, " (deleted)"))
 }
 
 // Stop は pid に SIGTERM を送り、timeout まで終了を待つ。

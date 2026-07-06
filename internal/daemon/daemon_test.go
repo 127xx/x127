@@ -57,6 +57,19 @@ func TestOwned(t *testing.T) {
 	}
 }
 
+func TestExeBase(t *testing.T) {
+	cases := map[string]string{
+		"/usr/local/bin/x127":           "x127",
+		"/usr/local/bin/x127 (deleted)": "x127", // 稼働中に削除・置換されたケース
+		"x127":                          "x127",
+	}
+	for in, want := range cases {
+		if got := exeBase(in); got != want {
+			t.Errorf("exeBase(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestStop(t *testing.T) {
 	cmd := exec.Command("sleep", "60")
 	if err := cmd.Start(); err != nil {
