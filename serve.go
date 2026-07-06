@@ -145,7 +145,15 @@ func runServer(stderr io.Writer) int {
 		_ = ln.Close()
 		return 1
 	}
-	defer func() { _ = os.Remove(pidPath) }()
+	// Shutdown は listener を閉じてから runServer が return するため、その間に別 daemon が
+	// 即時再起動して PID を書くことがある。自分が所有者のときだけ削除し、新 daemon の
+	// PID ファイルを誤って消さないようにする。
+	ownPID := os.Getpid()
+	defer func() {
+		if pid, ok := daemon.ReadPID(pidPath); ok && pid == ownPID {
+			_ = os.Remove(pidPath)
+		}
+	}()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
