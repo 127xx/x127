@@ -164,16 +164,29 @@ func probeListen() error {
 }
 
 // portHolder は 12700 を占有しているプロセスを " by <process> (pid N)" 形式で返す。
-// スキャナが特定できない場合は "" を返す。
+// プロセス名が取れない場合(macOS の他ユーザープロセス等)は pid だけでも
+// " (pid N)" を返す。全く特定できない場合のみ "" を返す。
 func portHolder() string {
 	entries, err := ports.Scan()
 	if err != nil {
 		return ""
 	}
+	var pidOnly int32
 	for _, e := range entries {
-		if e.Port == 12700 && e.Process != "" {
+		if e.Port != 12700 {
+			continue
+		}
+		// プロセス名まで取れたエントリを最優先で返す
+		if e.Process != "" {
 			return fmt.Sprintf(" by %s (pid %d)", e.Process, e.PID)
 		}
+		// 名前は不明だが pid は取れた場合はフォールバックとして控える
+		if pidOnly == 0 && e.PID > 0 {
+			pidOnly = e.PID
+		}
+	}
+	if pidOnly > 0 {
+		return fmt.Sprintf(" (pid %d)", pidOnly)
 	}
 	return ""
 }
