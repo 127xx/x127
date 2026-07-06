@@ -90,6 +90,20 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintf(stderr, "x127: daemon did not become healthy: %v (see %s)\n", err, logPath)
 		return 1
 	}
+
+	// health は共有エンドポイントのため、同時 serve のレースに負けた親も勝者の health を
+	// 見て成功と誤認しうる。PID ファイルの所有者が自分の子かを照合して取り違えを防ぐ。
+	if filePid, ok := daemon.ReadPID(pidPath); !ok || filePid != cmd.Process.Pid {
+		// 別インスタンスが先に bind した。自分の子は bind 失敗で終了済みだが念のため後始末する。
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		_ = cmd.Wait()
+		if ok {
+			_, _ = fmt.Fprintf(stderr, "x127 is already running (pid %d): %s\n", filePid, baseURL)
+		} else {
+			_, _ = fmt.Fprintf(stderr, "x127: another instance won the startup race\n")
+		}
+		return 1
+	}
 	_, _ = fmt.Fprintf(stdout, "x127 serving at %s (pid %d)\n", baseURL, cmd.Process.Pid)
 	return 0
 }
