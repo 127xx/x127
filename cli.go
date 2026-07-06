@@ -20,16 +20,17 @@ commands:
 // 下の switch にサブコマンドの case を追加していく。
 func Run(args []string, stdout, stderr io.Writer) int {
 	if len(args) < 1 {
-		fmt.Fprint(stderr, usage)
+		// CLI 表示の書き込み失敗は対処できないためエラーを明示的に無視する
+		_, _ = fmt.Fprint(stderr, usage)
 		return 2
 	}
 	switch args[0] {
 	case "version", "--version":
-		fmt.Fprintf(stdout, "x127 %s\n", version)
+		_, _ = fmt.Fprintf(stdout, "x127 %s\n", version)
 		return 0
 	default:
-		fmt.Fprintf(stderr, "x127: unknown command %q\n\n", args[0])
-		fmt.Fprint(stderr, usage)
+		_, _ = fmt.Fprintf(stderr, "x127: unknown command %q\n\n", args[0])
+		_, _ = fmt.Fprint(stderr, usage)
 		return 2
 	}
 }

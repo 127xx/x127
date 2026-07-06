@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  # standard は errcheck / govet / ineffassign / staticcheck / unused を有効化する
+  default: standard
+  enable:
+    - noctx
+  exclusions:
+    rules:
+      # テストは実ネットワーク呼び出しを行わないため noctx を除外する(#29)
+      - path: _test\.go
+        linters:
+          - noctx
