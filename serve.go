@@ -45,7 +45,7 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
-	if pid, ok := daemon.ReadPID(pidPath); ok && daemon.Alive(pid) {
+	if pid, ok := daemon.ReadPID(pidPath); ok && daemon.Alive(pid) && daemon.Owned(pid) {
 		_, _ = fmt.Fprintf(stderr, "x127 is already running (pid %d): %s\n", pid, baseURL)
 		return 1
 	}
@@ -187,7 +187,7 @@ func cmdStatus(stdout, stderr io.Writer) int {
 		return 1
 	}
 	pid, ok := daemon.ReadPID(pidPath)
-	if !ok || !daemon.Alive(pid) {
+	if !ok || !daemon.Alive(pid) || !daemon.Owned(pid) {
 		_, _ = fmt.Fprintln(stdout, "x127 is not running")
 		return 1
 	}
@@ -211,8 +211,10 @@ func cmdStop(stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stdout, "x127 is not running")
 		return 1
 	}
-	if !daemon.Alive(pid) {
-		_ = os.Remove(pidPath) // 古い PID ファイルを掃除する
+	if !daemon.Alive(pid) || !daemon.Owned(pid) {
+		// 死んでいる、または PID 再利用で x127 でないプロセスを指す PID ファイルは
+		// stale として掃除する。他プロセスへ誤って SIGTERM を送らない。
+		_ = os.Remove(pidPath)
 		_, _ = fmt.Fprintln(stdout, "x127 is not running (removed stale pid file)")
 		return 1
 	}

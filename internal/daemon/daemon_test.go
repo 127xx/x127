@@ -34,6 +34,29 @@ func TestAlive(t *testing.T) {
 	}
 }
 
+func TestOwned(t *testing.T) {
+	// 自プロセス(テストバイナリ)は os.Executable() と一致するため owned とみなされる
+	if !Owned(os.Getpid()) {
+		t.Fatal("Owned(self) = false, want true")
+	}
+	// 別名のプロセス(sleep)は x127 ではないので false
+	cmd := exec.Command("sleep", "60")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}()
+	if Owned(cmd.Process.Pid) {
+		t.Fatalf("Owned(sleep pid %d) = true, want false", cmd.Process.Pid)
+	}
+	// 存在しない PID も false
+	if Owned(99999999) {
+		t.Fatal("Owned(bogus) = true, want false")
+	}
+}
+
 func TestStop(t *testing.T) {
 	cmd := exec.Command("sleep", "60")
 	if err := cmd.Start(); err != nil {

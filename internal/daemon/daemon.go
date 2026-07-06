@@ -5,10 +5,13 @@ package daemon
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 // WritePID は自プロセスの PID を path に書き込む。
@@ -32,6 +35,31 @@ func ReadPID(path string) (int, bool) {
 // Alive は signal 0 を送ってプロセスの生存を確認する。
 func Alive(pid int) bool {
 	return syscall.Kill(pid, 0) == nil
+}
+
+// Owned は pid が x127 自身のプロセスかを実行ファイル名で照合して判定する。
+// PID の再利用で別プロセスを x127 と誤認し、稼働中扱いや SIGTERM 送信をしないための確認に使う。
+// プロセス情報が取得できない(macOS の他ユーザープロセス等)場合は安全側に倒して false を返す。
+func Owned(pid int) bool {
+	self, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	want := filepath.Base(self)
+
+	p, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return false
+	}
+	// 実行ファイルのフルパスが取れれば basename で照合する
+	if exe, err := p.Exe(); err == nil && exe != "" {
+		return filepath.Base(exe) == want
+	}
+	// フルパスが取れない環境では実行ファイル名で照合する
+	if name, err := p.Name(); err == nil && name != "" {
+		return name == want
+	}
+	return false
 }
 
 // Stop は pid に SIGTERM を送り、timeout まで終了を待つ。
