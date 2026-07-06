@@ -81,6 +81,10 @@ func spawnDaemon(stdout, stderr io.Writer) int {
 	}
 
 	if err := waitHealthy(3 * time.Second); err != nil {
+		// health にならなかった子を残すとポート/PID を掴んだままになり、
+		// 次回の serve が already running / port in use で失敗するため確実に停止する。
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		_ = cmd.Wait()
 		fmt.Fprintf(stderr, "x127: daemon did not become healthy: %v (see %s)\n", err, logPath)
 		return 1
 	}
@@ -96,12 +100,6 @@ func runServer(stderr io.Writer) int {
 		fmt.Fprintf(stderr, "x127: %v\n", err)
 		return 1
 	}
-	if err := daemon.WritePID(pidPath); err != nil {
-		fmt.Fprintf(stderr, "x127: %v\n", err)
-		return 1
-	}
-	defer os.Remove(pidPath)
-
 	regPath, err := config.RegistryPath()
 	if err != nil {
 		fmt.Fprintf(stderr, "x127: %v\n", err)
@@ -118,10 +116,24 @@ func runServer(stderr io.Writer) int {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	// 先に bind し、成功した本物のサーバーだけが PID ファイルを所有する。
+	// これにより同時 serve で敗者(bind 失敗側)が勝者の PID ファイルを消す競合を防ぐ。
+	ln, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		return 1
+	}
+	if err := daemon.WritePID(pidPath); err != nil {
+		fmt.Fprintf(stderr, "x127: %v\n", err)
+		_ = ln.Close()
+		return 1
+	}
+	defer func() { _ = os.Remove(pidPath) }()
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	errCh := make(chan error, 1)
-	go func() { errCh <- srv.ListenAndServe() }()
+	go func() { errCh <- srv.Serve(ln) }()
 
 	fmt.Fprintf(stderr, "x127 %s listening on %s\n", version, listenAddr)
 	select {
@@ -175,7 +187,7 @@ func cmdStop(stdout, stderr io.Writer) int {
 		return 1
 	}
 	if !daemon.Alive(pid) {
-		os.Remove(pidPath) // 古い PID ファイルを掃除する
+		_ = os.Remove(pidPath) // 古い PID ファイルを掃除する
 		fmt.Fprintln(stdout, "x127 is not running (removed stale pid file)")
 		return 1
 	}
