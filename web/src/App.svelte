@@ -53,7 +53,9 @@
           .json()
           .catch(() => ({}))
           .then((body) => {
-            error = body.error ?? `保存に失敗しました (HTTP ${res.status})`;
+            const message =
+              typeof body?.error === "string" ? body.error : undefined;
+            error = message ?? `保存に失敗しました (HTTP ${res.status})`;
           });
       })
       .catch((e) => {
@@ -69,7 +71,9 @@
           .json()
           .catch(() => ({}))
           .then((body) => {
-            error = body.error ?? `削除に失敗しました (HTTP ${res.status})`;
+            const message =
+              typeof body?.error === "string" ? body.error : undefined;
+            error = message ?? `削除に失敗しました (HTTP ${res.status})`;
           });
       })
       .catch((e) => {

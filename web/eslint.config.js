@@ -29,6 +29,6 @@ export default defineConfig(
       },
     },
   },
-  prettier,
   svelte.configs.prettier,
+  prettier,
 );

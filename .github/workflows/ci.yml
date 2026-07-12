@@ -95,8 +95,16 @@ jobs:
         run: npm run build
 
       # ソースだけ変更して dist の再ビルドを忘れたコミットを検出する(dist コミット方式の弱点を塞ぐ)。
+      # git diff は追跡済みファイルの差分しか見ないため、新規生成された未追跡ファイル
+      # (例: ハッシュが変わって増えたアセット)も検出できるよう git status で確認する。
       - name: dist が最新か確認
-        run: git diff --exit-code -- dist
+        run: |
+          status="$(git status --porcelain --untracked-files=all -- dist)"
+          if [ -n "$status" ]; then
+            echo "dist/ がビルド結果と一致しません。npm run build を実行してコミットしてください:"
+            echo "$status"
+            exit 1
+          fi
 
   # ブランチ保護で必須にするのはこの集約ジョブ 1 つだけにする想定。
   # lint / test(matrix 含む) / web が全て success/skipped なら成功、いずれか failure/cancelled なら失敗。
