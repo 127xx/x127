@@ -17,15 +17,19 @@
   let name = $state("");
   let note = $state("");
 
-  async function load() {
-    try {
-      const res = await fetch("/api/ports");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      ports = await res.json();
-      error = "";
-    } catch (e) {
-      error = `ポート一覧の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
-    }
+  function load() {
+    return fetch("/api/ports")
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        ports = data;
+        error = "";
+      })
+      .catch((e) => {
+        error = `ポート一覧の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
+      });
   }
 
   function startEdit(p: PortView) {
@@ -34,24 +38,37 @@
     note = p.note ?? "";
   }
 
-  async function save() {
-    const res = await fetch(`/api/ports/${editing}/label`, {
+  function save() {
+    return fetch(`/api/ports/${editing}/label`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, note }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      error = body.error ?? `保存に失敗しました (HTTP ${res.status})`;
-      return;
-    }
-    editing = null;
-    await load();
+    })
+      .then((res) => {
+        if (res.ok) {
+          editing = null;
+          return load();
+        }
+        return res.json().catch(() => ({})).then((body) => {
+          error = body.error ?? `保存に失敗しました (HTTP ${res.status})`;
+        });
+      })
+      .catch((e) => {
+        error = `保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
+      });
   }
 
-  async function clearLabel(port: number) {
-    await fetch(`/api/ports/${port}/label`, { method: "DELETE" });
-    await load();
+  function clearLabel(port: number) {
+    return fetch(`/api/ports/${port}/label`, { method: "DELETE" })
+      .then((res) => {
+        if (res.ok) return load();
+        return res.json().catch(() => ({})).then((body) => {
+          error = body.error ?? `削除に失敗しました (HTTP ${res.status})`;
+        });
+      })
+      .catch((e) => {
+        error = `削除に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
+      });
   }
 
   $effect(() => {
@@ -74,7 +91,7 @@
     </tr>
   </thead>
   <tbody>
-    {#each ports as p (p.port + "|" + p.address)}
+    {#each ports as p (p.port + "|" + p.address + "|" + p.pid)}
       <tr class:inactive={!p.active}>
         <td>{p.port}</td>
         <td>
