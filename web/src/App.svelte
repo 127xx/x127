@@ -49,9 +49,12 @@
           editing = null;
           return load();
         }
-        return res.json().catch(() => ({})).then((body) => {
-          error = body.error ?? `保存に失敗しました (HTTP ${res.status})`;
-        });
+        return res
+          .json()
+          .catch(() => ({}))
+          .then((body) => {
+            error = body.error ?? `保存に失敗しました (HTTP ${res.status})`;
+          });
       })
       .catch((e) => {
         error = `保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
@@ -62,9 +65,12 @@
     return fetch(`/api/ports/${port}/label`, { method: "DELETE" })
       .then((res) => {
         if (res.ok) return load();
-        return res.json().catch(() => ({})).then((body) => {
-          error = body.error ?? `削除に失敗しました (HTTP ${res.status})`;
-        });
+        return res
+          .json()
+          .catch(() => ({}))
+          .then((body) => {
+            error = body.error ?? `削除に失敗しました (HTTP ${res.status})`;
+          });
       })
       .catch((e) => {
         error = `削除に失敗しました: ${e instanceof Error ? e.message : String(e)}`;
@@ -87,7 +93,8 @@
 <table>
   <thead>
     <tr>
-      <th>Port</th><th>Name</th><th>Process</th><th>PID</th><th>Address</th><th></th>
+      <th>Port</th><th>Name</th><th>Process</th><th>PID</th><th>Address</th><th
+      ></th>
     </tr>
   </thead>
   <tbody>
@@ -110,8 +117,11 @@
         <td>{p.address}</td>
         <td>
           {#if editing !== p.port}
-            <button onclick={() => startEdit(p)}>{p.name ? "編集" : "名前を付ける"}</button>
-            {#if p.name}<button onclick={() => clearLabel(p.port)}>削除</button>{/if}
+            <button onclick={() => startEdit(p)}
+              >{p.name ? "編集" : "名前を付ける"}</button
+            >
+            {#if p.name}<button onclick={() => clearLabel(p.port)}>削除</button
+              >{/if}
           {/if}
         </td>
       </tr>
