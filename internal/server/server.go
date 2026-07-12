@@ -16,10 +16,9 @@ import (
 
 	"github.com/127xx/x127/internal/ports"
 	"github.com/127xx/x127/internal/registry"
+	"github.com/127xx/x127/internal/version"
 	"github.com/127xx/x127/web"
 )
-
-const version = "v0.1.0-dev"
 
 // PortView は LISTEN 中のポート情報に台帳のラベルを重ねた API レスポンス。
 // Active は実際に LISTEN 中かどうかを表す(台帳のみのエントリは false)。
@@ -61,7 +60,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": version})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": version.Version})
 }
 
 func (s *Server) listPorts(w http.ResponseWriter, r *http.Request) {

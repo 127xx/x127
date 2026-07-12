@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
-)
 
-const version = "v0.1.0-dev"
+	"github.com/127xx/x127/internal/version"
+)
 
 const usage = `usage: x127 <command>
 
@@ -26,7 +26,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "version", "--version":
-		_, _ = fmt.Fprintf(stdout, "x127 %s\n", version)
+		_, _ = fmt.Fprintf(stdout, "x127 %s\n", version.Version)
 		return 0
 	case "serve":
 		return cmdServe(stdout, stderr)
