@@ -17,6 +17,7 @@ import (
 	"github.com/127xx/x127/internal/daemon"
 	"github.com/127xx/x127/internal/ports"
 	"github.com/127xx/x127/internal/server"
+	"github.com/127xx/x127/internal/version"
 )
 
 const (
@@ -160,7 +161,7 @@ func runServer(stderr io.Writer) int {
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 
-	_, _ = fmt.Fprintf(stderr, "x127 %s listening on %s\n", version, listenAddr)
+	_, _ = fmt.Fprintf(stderr, "x127 %s listening on %s\n", version.Version, listenAddr)
 	select {
 	case <-ctx.Done():
 		shutdownCtx, c := context.WithTimeout(context.Background(), 3*time.Second)
